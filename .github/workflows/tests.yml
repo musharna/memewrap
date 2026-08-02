@@ -89,3 +89,54 @@ jobs:
       - run: pip install ruff
       - run: ruff check memewrap tests
       - run: ruff format --check memewrap tests
+
+  package:
+    # The sdist is what users get from `pip install --no-binary`, and its
+    # contents are chosen by setuptools heuristics that fail SILENTLY. Before
+    # MANIFEST.in existed the default selection matched `tests/test_*.py` and
+    # dropped `tests/conftest.py`, shipping a tests directory that looked
+    # complete and could not run -- every fixture lives in that one file.
+    # Nothing reported it; the build succeeded and `twine check` PASSED.
+    #
+    # So this asserts the sdist against git rather than a hand-written list,
+    # which is the part that cannot drift: any .py added under tests/ is covered
+    # the day it is committed, with no CI edit.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+
+      - name: The sdist carries every test file git does, plus the metadata
+        run: |
+          set -euo pipefail
+          listing=$(tar tzf dist/*.tar.gz | sed 's|^[^/]*/||')
+
+          for want in LICENSE README.md pyproject.toml; do
+            echo "$listing" | grep -qx "$want" \
+              || { echo "::error::sdist is MISSING $want"; exit 1; }
+          done
+
+          # The invariant: tests in the sdist == tests tracked by git.
+          git ls-files 'tests/*.py' | sort > /tmp/want.txt
+          echo "$listing" | grep -E '^tests/.*\.py$' | sort > /tmp/got.txt
+          if ! diff -u /tmp/want.txt /tmp/got.txt; then
+            echo "::error::sdist test files differ from git (- want, + got)"
+            exit 1
+          fi
+          echo "sdist ships $(wc -l < /tmp/got.txt) test files, matching git"
+
+      - name: The wheel does NOT carry tests
+        # The conventional split, and why the check above is sdist-only: a wheel
+        # shipping a top-level `tests` package would collide with any other
+        # installed distribution doing the same.
+        run: |
+          set -euo pipefail
+          if unzip -l dist/*.whl | grep -qE ' tests/'; then
+            echo "::error::wheel leaked the tests directory"; exit 1
+          fi
+          echo "wheel carries no tests, as intended"

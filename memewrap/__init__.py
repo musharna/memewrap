@@ -1,9 +1,8 @@
 """memewrap -- Python wrappers for the MEME-suite command-line tools.
 
-Extracted from duplicated wrapper code in two active research repos
-(`arf_promoter_analysis` and `phelipanche-fm`), where the same STREME, TOMTOM
-and FIMO invocations had been copied across four scripts with a hardcoded conda
-path at module scope in each.
+Extracted from duplicated wrapper code in two unrelated plant-genomics projects,
+where the same STREME, TOMTOM and FIMO invocations had been copied across four
+scripts with a hardcoded conda path at module scope in each.
 
 Scope, decided against a live PyPI check rather than from memory:
 

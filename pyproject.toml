@@ -29,7 +29,7 @@ description = "Python wrappers for the MEME-suite CLI: STREME, TOMTOM and FIMO."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-authors = [{ name = "M. Arnold" }]
+authors = [{ name = "Jaret Arnold" }]
 keywords = ["bioinformatics", "motif", "meme-suite", "streme", "tomtom", "fimo"]
 classifiers = [
     "Intended Audience :: Science/Research",
