@@ -1,0 +1,15 @@
+# Without this file setuptools falls back to its default sdist selection, which
+# picks up `tests/test_*.py` by pattern and SILENTLY OMITS `tests/conftest.py`.
+# That produced an sdist whose tests directory looked complete and could not run:
+# every fixture the suite depends on (primary_fasta, control_fasta, small_fasta,
+# motif_db, requires_meme, PLANTED_MOTIF) is defined in conftest.py, so a source
+# install collected six test modules and errored on all of them.
+#
+# The suite ships deliberately. This package's claim is that the wrappers are
+# verified against the REAL MEME binaries rather than a mock, and a user
+# installing from source should be able to re-run that check against their own
+# MEME install. Shipping half a suite serves neither goal.
+#
+# tests/ is excluded from the WHEEL by [tool.setuptools.packages.find] — only
+# the sdist carries it, which is the conventional split.
+recursive-include tests *.py
