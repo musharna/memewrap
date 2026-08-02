@@ -1,0 +1,87 @@
+# Packaging metadata for memewrap.
+#
+# Unlike seqbench (this project's sibling), memewrap DOES declare runtime
+# dependencies. seqbench omits them because environment.yml is its single
+# dependency declaration and a second hand-maintained list would drift from it.
+# memewrap has no environment.yml: it is a small pip-installable library whose
+# Python needs are numpy and pandas and nothing else, so declaring them here is
+# the honest thing rather than a duplicate.
+#
+# WHAT PIP CANNOT INSTALL, AND WHY THAT IS SAID OUT LOUD
+#
+# The MEME suite itself is a C toolchain, not a Python package. `pip install
+# memewrap` gives you the wrappers and NONE of the binaries they drive. Get
+# those from bioconda:
+#
+#     conda create -n meme-suite -c bioconda -c conda-forge meme
+#
+# then point memewrap at them with MEME_BIN, or put them on PATH. Every wrapper
+# raises MemeToolNotFound naming where it searched, so this failure is loud at
+# setup rather than several minutes into a scan.
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "memewrap"
+description = "Python wrappers for the MEME-suite CLI: STREME, TOMTOM and FIMO."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "M. Arnold" }]
+keywords = ["bioinformatics", "motif", "meme-suite", "streme", "tomtom", "fimo"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Programming Language :: Python :: 3",
+]
+
+# Read from memewrap.__version__ rather than written twice, so a release cannot
+# ship metadata that disagrees with the module. tests/test_packaging.py asserts
+# the two agree.
+dynamic = ["version"]
+
+dependencies = ["numpy>=1.24", "pandas>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://github.com/musharna/memewrap"
+
+[tool.setuptools.dynamic]
+version = { attr = "memewrap.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["memewrap*"]
+
+# Declared explicitly rather than inherited. Without this block ruff resolves
+# whatever configuration sits above this directory, so the rule set depends on
+# where the repository happens to be checked out -- and CI, which clones onto a
+# bare runner, then lints against different rules than the developer does.
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = [
+    # __all__ is grouped by module (tools, streme, tomtom, fimo, motifdb) so it
+    # reads as an index of the package. Alphabetising it loses that.
+    "RUF022",
+    # Line length is the formatter's job, and it does not rewrap prose inside
+    # docstrings -- several explanations here are more readable slightly long.
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# `conftest` is imported by module name, which ruff cannot resolve as
+# first-party, so it sorts the import into the wrong block.
+"tests/*" = ["I001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    # Real-execution tests against the installed MEME suite. They are the point
+    # of this package -- a wrapper verified only against a mock proves that the
+    # mock matches the wrapper, not that the wrapper matches STREME -- so they
+    # run by DEFAULT and skip only when the binaries are genuinely absent.
+    "meme: requires the MEME suite binaries (auto-skipped if not installed)",
+]

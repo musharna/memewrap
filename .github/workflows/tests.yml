@@ -1,0 +1,91 @@
+# CI installs the MEME suite. That costs a few minutes per run and it is the
+# whole point of this workflow.
+#
+# The tests that matter here drive external binaries. A CI job that installed
+# only the Python dependencies would run the 40-odd pure-logic tests, SKIP every
+# real-execution test, and report green -- and a skipped test is indistinguishable
+# from an absent one in a summary line. This project has that exact failure in a
+# sibling repo's history: an evaluation's control had never once run in CI
+# because of a module-level skipif, and nothing said so for weeks.
+#
+# So `assert-real-execution-ran` below fails the build if the MEME-marked tests
+# did not actually execute. Installing the suite and then silently skipping is
+# the failure mode worth guarding, not the install itself.
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A push to a PR branch would otherwise run this twice -- once for `push`, once
+# for `pull_request` -- and the MEME install makes each run expensive.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: meme
+          create-args: >-
+            python=3.12
+            meme
+          condarc: |
+            channels:
+              - conda-forge
+              - bioconda
+
+      - name: Install memewrap
+        run: pip install -e '.[dev]'
+
+      - name: Confirm the MEME binaries are visible to the wrappers
+        run: |
+          python -c "
+          from memewrap.tools import require_tools
+          print({k: str(v) for k, v in require_tools().items()})
+          "
+
+      - name: Run the suite
+        run: pytest -q --junitxml=results.xml
+
+      - name: assert-real-execution-ran
+        # The guard described in the header. `-m meme` selects exactly the tests
+        # that need the binaries; if any were skipped, or if none were collected,
+        # the wrappers were never actually exercised against STREME/TOMTOM/FIMO
+        # and the green suite above means considerably less than it appears to.
+        run: |
+          pytest -m meme -q --junitxml=meme.xml
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          s = ET.parse("meme.xml").getroot().find("testsuite")
+          tests = int(s.get("tests", 0))
+          skipped = int(s.get("skipped", 0))
+          print(f"meme-marked: {tests} collected, {skipped} skipped")
+          if tests == 0:
+              sys.exit("no MEME-marked tests were collected -- the real-execution "
+                       "suite has vanished from CI")
+          if skipped:
+              sys.exit(f"{skipped} MEME-marked test(s) SKIPPED -- the binaries were "
+                       "not found, so nothing was verified against the real tools")
+          PY
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check memewrap tests
+      - run: ruff format --check memewrap tests
