@@ -276,14 +276,18 @@ def test_run_fimo_default_computes_qvalues_and_text_mode_does_not(
     assert (df["q-value"] <= 1).all() and (df["q-value"] >= 0).all()
     assert set(df["sequence_name"].astype(str)) == {f"seq{i}" for i in range(12)}
 
-    text = run_fimo(small_fasta, motif_db, tmp_path / "text.tsv", thresh="1e-3", text=True)
+    text = run_fimo(
+        small_fasta, motif_db, tmp_path / "text.tsv", thresh="1e-3", text=True
+    )
     dft = pd.read_csv(text, sep="\t", comment="#")
     assert dft["q-value"].isna().all(), "--text mode unexpectedly produced q-values"
 
 
 @requires_meme
 @pytest.mark.meme
-def test_parallel_scan_says_out_loud_that_qvalues_are_absent(tmp_path, small_fasta, motif_db):
+def test_parallel_scan_says_out_loud_that_qvalues_are_absent(
+    tmp_path, small_fasta, motif_db
+):
     with pytest.warns(UserWarning, match="q-value"):
         merged = run_fimo_parallel(
             small_fasta, motif_db, tmp_path / "fimo", n_chunks=3, thresh="1e-3"
