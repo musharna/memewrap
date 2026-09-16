@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -48,7 +49,13 @@ import pandas as pd
 
 from .tools import find_tool
 
-__all__ = ["FimoError", "run_fimo", "run_fimo_parallel", "build_feature_matrix"]
+__all__ = [
+    "FimoError",
+    "NO_QVALUES_IN_TEXT_MODE",
+    "run_fimo",
+    "run_fimo_parallel",
+    "build_feature_matrix",
+]
 
 
 class FimoError(RuntimeError):
@@ -114,6 +121,15 @@ def split_fasta(
     return paths
 
 
+NO_QVALUES_IN_TEXT_MODE = (
+    "fimo --text streams hits without computing q-values: the q-value column is "
+    "present but EMPTY on every row. FIMO derives q-values from the whole run's "
+    "test count, so no per-chunk scan can supply them. Use run_fimo() (single "
+    "process, default text=False) when you need q-values; filter on p-value or "
+    "score here."
+)
+
+
 def run_fimo(
     fasta: str | os.PathLike,
     motifs: str | os.PathLike,
@@ -121,34 +137,75 @@ def run_fimo(
     *,
     thresh: str | float = "1e-4",
     meme_bin: str | os.PathLike | None = None,
+    text: bool = False,
+    max_stored_scores: int = 100_000,
 ) -> Path:
-    """Scan one FASTA with `fimo --text`, writing the TSV to `out_tsv`."""
+    """Scan one FASTA with FIMO, writing the TSV to `out_tsv`.
+
+    By default FIMO runs in its normal (`--oc`) mode, which computes q-values
+    over the whole run; `fimo.tsv` from that run is copied to `out_tsv` with
+    FIMO's trailing `#` comment lines stripped. FIMO keeps at most
+    `max_stored_scores` hits in this mode and drops the weakest beyond it --
+    raise the number, or tighten `thresh`, for very large scans.
+
+    `text=True` uses `fimo --text`: streaming, no cap, no HTML/XML/GFF side
+    outputs -- and NO q-values (see `NO_QVALUES_IN_TEXT_MODE`). Until 0.2.0 this
+    was the only mode, and its empty q-value column was indistinguishable from
+    data.
+    """
     fasta, motifs, out_tsv = Path(fasta), Path(motifs), Path(out_tsv)
     if not fasta.is_file():
         raise FileNotFoundError(f"FASTA does not exist: {fasta}")
     if not motifs.is_file():
         raise FileNotFoundError(f"motif file does not exist: {motifs}")
     out_tsv.parent.mkdir(parents=True, exist_ok=True)
+    fimo_exe = str(find_tool("fimo", meme_bin))
 
+    if text:
+        cmd = [fimo_exe, "--text", "--thresh", str(thresh), str(motifs), str(fasta)]
+        with open(out_tsv, "w") as fh:
+            proc = subprocess.run(
+                cmd, stdout=fh, stderr=subprocess.PIPE, text=True, check=False
+            )
+        _raise_if_failed(proc, cmd)
+        return out_tsv
+
+    workdir = out_tsv.parent / f".{out_tsv.stem}_fimo_oc"
     cmd = [
-        str(find_tool("fimo", meme_bin)),
-        "--text",
+        fimo_exe,
+        "--oc",
+        str(workdir),
         "--thresh",
         str(thresh),
+        "--max-stored-scores",
+        str(max_stored_scores),
         str(motifs),
         str(fasta),
     ]
-    with open(out_tsv, "w") as fh:
-        proc = subprocess.run(
-            cmd, stdout=fh, stderr=subprocess.PIPE, text=True, check=False
+    proc = subprocess.run(
+        cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False
+    )
+    _raise_if_failed(proc, cmd)
+    produced = workdir / "fimo.tsv"
+    if not produced.is_file():
+        raise FimoError(
+            f"fimo exited 0 but wrote no {produced}\n  command: {' '.join(cmd)}"
         )
+    with open(produced) as src, open(out_tsv, "w") as dst:
+        for line in src:
+            if line.startswith("#") or not line.strip():
+                continue  # FIMO's trailing provenance comments and blank line
+            dst.write(line)
+    return out_tsv
+
+
+def _raise_if_failed(proc: subprocess.CompletedProcess, cmd: list[str]) -> None:
     if proc.returncode != 0:
         raise FimoError(
             f"fimo exited {proc.returncode}\n"
             f"  command: {' '.join(cmd)}\n"
-            f"  stderr: {proc.stderr.strip()[-2000:]}"
+            f"  stderr: {(proc.stderr or '').strip()[-2000:]}"
         )
-    return out_tsv
 
 
 def merge_fimo_tsvs(parts: list[Path], merged: str | os.PathLike) -> Path:
@@ -190,7 +247,13 @@ def run_fimo_parallel(
     thresh: str | float = "1e-4",
     meme_bin: str | os.PathLike | None = None,
 ) -> Path:
-    """Scan `fasta` with FIMO across `n_chunks` processes; return the merged TSV."""
+    """Scan `fasta` with `fimo --text` over `n_chunks` processes; return the merged TSV.
+
+    The merged file carries FIMO's `q-value` column with every cell empty -- see
+    `NO_QVALUES_IN_TEXT_MODE`. A warning is raised on every call, not only noted
+    here, because an empty column parses as NaN and looks like data.
+    """
+    warnings.warn(NO_QVALUES_IN_TEXT_MODE, UserWarning, stacklevel=2)
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     chunks = split_fasta(fasta, outdir, n_chunks)

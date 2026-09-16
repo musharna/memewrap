@@ -56,6 +56,11 @@ n = match_count(motifs, "jaspar_plants.meme", q_thresh=0.05)
 # Scan, then build a (gene x motif) design matrix of max FIMO scores.
 tsv = run_fimo_parallel("promoters.fa", "jaspar_plants.meme", "out/fimo", n_chunks=8)
 X = build_feature_matrix(tsv, gene_ids, motif_ids)
+
+# Need q-values? Scan in one process. FIMO computes q-values from the whole
+# run's test count, so the chunked scan above CANNOT have them -- its q-value
+# column is empty, and run_fimo_parallel warns about that on every call.
+tsv = run_fimo("promoters.fa", "jaspar_plants.meme", "out/fimo.tsv", thresh="1e-4")
 ```
 
 ## What each wrapper fixes
@@ -72,6 +77,15 @@ _Related, and worth stating because it looked like a bug and wasn't:_ the two
 source call sites appeared to diverge, one passing `--order 2 --thresh 0.05` and
 one passing neither. Against STREME 5.5.9 those are both the defaults, so the
 divergence was cosmetic.
+
+**`run_fimo` computes q-values; `run_fimo_parallel` says out loud that it can't.**
+Until 0.2.0 both paths hardcoded `fimo --text`, which streams hits but skips the
+q-value computation — the column is emitted with every cell empty, which
+`pd.read_csv` reads as NaN and nothing downstream flags. Chunking is the reason:
+FIMO's q-values depend on the whole run's test count, so no per-chunk scan can
+produce them. `run_fimo` now runs FIMO normally (`--oc`) and copies its
+`fimo.tsv`, q-values included; `text=True` restores the old streaming mode.
+`run_fimo_parallel` keeps `--text` (that is what makes it parallel) and warns.
 
 **`run_fimo_parallel` no longer loses the header.** The source kept the header
 from chunk 0 and stripped line 0 of every later chunk. `fimo --text` writes a

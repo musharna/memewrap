@@ -248,3 +248,49 @@ def test_the_real_scan_feeds_build_feature_matrix(tmp_path, small_fasta, motif_d
         f"{int((X[:, 0] == 0).sum())} of 12 sequences scored 0 despite carrying "
         f"the motif"
     )
+
+
+# --------------------------------------------------------------------------
+# q-values: `--text` streams but never computes them (2026-09-15 panel finding)
+# --------------------------------------------------------------------------
+
+
+@requires_meme
+@pytest.mark.meme
+def test_run_fimo_default_computes_qvalues_and_text_mode_does_not(
+    tmp_path, small_fasta, motif_db
+):
+    """Positive and negative in one test, so a broken harness cannot read as green.
+
+    FIMO computes q-values from the whole run's test count, which `--text` mode
+    skips; the column is emitted but every cell is empty. The default single
+    process path must therefore NOT use `--text`, and the explicit `text=True`
+    escape hatch must be visibly q-value-free rather than silently so.
+    """
+    from memewrap.fimo import run_fimo
+
+    full = run_fimo(small_fasta, motif_db, tmp_path / "full.tsv", thresh="1e-3")
+    df = pd.read_csv(full, sep="\t", comment="#")
+    assert "q-value" in df.columns
+    assert df["q-value"].notna().all(), "default run_fimo left q-values empty"
+    assert (df["q-value"] <= 1).all() and (df["q-value"] >= 0).all()
+    assert set(df["sequence_name"].astype(str)) == {f"seq{i}" for i in range(12)}
+
+    text = run_fimo(
+        small_fasta, motif_db, tmp_path / "text.tsv", thresh="1e-3", text=True
+    )
+    dft = pd.read_csv(text, sep="\t", comment="#")
+    assert dft["q-value"].isna().all(), "--text mode unexpectedly produced q-values"
+
+
+@requires_meme
+@pytest.mark.meme
+def test_parallel_scan_says_out_loud_that_qvalues_are_absent(
+    tmp_path, small_fasta, motif_db
+):
+    with pytest.warns(UserWarning, match="q-value"):
+        merged = run_fimo_parallel(
+            small_fasta, motif_db, tmp_path / "fimo", n_chunks=3, thresh="1e-3"
+        )
+    df = pd.read_csv(merged, sep="\t", comment="#")
+    assert df["q-value"].isna().all()
