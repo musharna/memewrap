@@ -48,7 +48,9 @@ setup rather than several minutes into a scan.
 from memewrap import run_streme, match_count, run_fimo_parallel, build_feature_matrix
 
 # Discriminative discovery: what is enriched in `primary` relative to `control`?
-motifs = run_streme("primary.fa", "control.fa", "out/streme", nmotifs=5, minw=6, maxw=12)
+motifs = run_streme(
+    "primary.fa", "control.fa", "out/streme", nmotifs=5, minw=6, maxw=12
+)
 
 # How many of my motifs match a reference set? (the shape a permutation test needs)
 n = match_count(motifs, "jaspar_plants.meme", q_thresh=0.05)
