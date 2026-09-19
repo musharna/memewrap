@@ -5,7 +5,10 @@
 # 3.12): the build script installs, the test command passes, and the repo's 87
 # tests pass with none skipped. `conda build` of this directory (conda-forge +
 # bioconda channels) then built memewrap-0.3.0-py_0.conda and its test section
-# passed. Still to do before submitting: `bioconda-utils lint`.
+# passed, and `bioconda-utils lint --packages memewrap` inside a checkout of
+# bioconda-recipes reports no problems (a copy with the licence and run_exports
+# removed fails it with missing_license and missing_run_exports, so the linter
+# does read this file). Nothing technical remains before submitting.
 #
 # Written without the usual Jinja `set version = ...` header: this repo's
 # check-yaml hook parses every .yaml file, and a Jinja statement line is not
