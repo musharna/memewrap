@@ -1,6 +1,7 @@
 # memewrap
 
-Python wrappers for the MEME-suite command-line tools: **STREME**, **TOMTOM** and **FIMO**.
+Python wrappers for the MEME-suite command-line tools: **STREME**, **TOMTOM**,
+**FIMO**, and (from 0.3.0) the enrichment tools **SEA** and **AME**.
 
 Extracted from wrapper code that had been copied across four scripts in two active
 research repos, each with `MEME_BIN = os.path.expanduser("~/miniconda3/envs/meme-suite/bin")`
@@ -65,6 +66,29 @@ X = build_feature_matrix(tsv, gene_ids, motif_ids)
 tsv = run_fimo("promoters.fa", "jaspar_plants.meme", "out/fimo.tsv", thresh="1e-4")
 ```
 
+Enrichment of known motifs (SEA needs MEME >= 5.4.0):
+
+```python
+from memewrap import AME_SHUFFLE, read_ame, read_sea, run_ame, run_sea
+
+# Which of these motifs are enriched in `primary` relative to `control`?
+sea = read_sea(
+    run_sea("primary.fa", "jaspar_plants.meme", "out/sea", control="control.fa")
+)
+hits = sea[sea["QVALUE"] < 0.05]  # columns are SEA's own: PVALUE, EVALUE, QVALUE, ...
+
+# AME: `control` is required -- a FASTA, AME_SHUFFLE, or an explicit None.
+ame = read_ame(
+    run_ame("primary.fa", "jaspar_plants.meme", "out/ame", control=AME_SHUFFLE)
+)
+hits = ame[
+    ame["adj_p-value"] < 0.05
+]  # AME reports p-value, adj_p-value, E-value; no q-value
+```
+
+Both tables list only motifs that passed the tool's reporting threshold (E-value
+<= 10 by default), so a motif missing from the frame was tested and not enriched.
+
 ## What each wrapper fixes
 
 These are measured against the source they came from, not stylistic preferences.
@@ -108,6 +132,19 @@ for a directory named `streme` and for a non-executable HTML error page saved
 under that name. Both reported the tool present and then failed inside a
 subprocess.
 
+**`run_ame` has no default for `control`.** `sea` without a control shuffles the
+primary sequences; `ame` without one silently does something else -- it treats
+the FASTA input order as a ranking. On the test corpus (motif planted in 90% of
+200 sequences) AME 5.5.9 gives p = 4.4e-97 against a control file, 2.0e-208
+against `--shuffle--`, and 0.07 with no `--control`, exit status 0 each time.
+
+**`run_sea` / `run_ame` default to `--text`.** Unlike FIMO's, their `--text`
+table is complete (SEA's q-values included). And in the bioconda build of MEME 5.5.9
+(`pl5321he99cc7f_1`; seen on a developer install and on a fresh CI install) the
+SEA and AME HTML templates have no data section: `sea --oc` exits 1 _after_ writing a header-only `sea.tsv`, which reads
+as "nothing enriched". `text=False` is there for intact installs; a non-zero
+exit raises `SeaError` / `AmeError` with the tool's stderr either way.
+
 **`verify_meme_db` checks the MEME version header, and takes `expect_min`.**
 Counting `^MOTIF` alone validates any file that mentions motifs at line start.
 And `ok` cannot express "I expected JASPAR plants CORE and got nine motifs" — a
@@ -120,7 +157,7 @@ pip install -e '.[dev]'
 pytest
 ```
 
-57 tests. The MEME-dependent ones **run by default** and skip individually, with
+87 tests. The MEME-dependent ones **run by default** and skip individually, with
 a reason, only when the binaries are absent — a wrapper verified against a mocked
 `subprocess.run` proves the mock matches the wrapper, which is the one
 relationship that cannot break in production.
@@ -133,10 +170,25 @@ really chunked and really merged over sequences whose hits are known.
 **fails** — the "never trust a test you haven't seen fail" control made
 permanent, so a regression turns two tests red rather than one.
 
-A 15-mutant pass kills 15/15, including every source behaviour listed above. Two
+The SEA and AME tests score a two-motif database -- the planted motif and a
+decoy planted nowhere -- and assert both halves: the planted motif is
+significant and the decoy is not. A control set that also carries the motif
+makes the `control` argument observable. 23 mutants of `sea.py` / `ame.py`
+(dropped flags, swapped statistic columns, swallowed exit status) were run; the
+first pass left one alive, a PVALUE/QVALUE swap hidden by `pytest.approx`'s
+default absolute tolerance of 1e-12, and the assertion was fixed.
+
+For the original three wrappers, a 15-mutant pass kills 15/15, including every source behaviour listed above. Two
 guards were deleted rather than kept after mutation showed them unreachable: an
 empty-chunk check already guaranteed by a `min()` bound, and a `dropna` already
 handled by pandas' comment and blank-line defaults.
+
+## Packaging
+
+`packaging/bioconda/meta.yaml` is a **draft** bioconda recipe (noarch python,
+run-dependency on `meme`), which would let one `conda install` bring the
+binaries along. It has not been submitted to bioconda-recipes, linted or built,
+and cannot be until this version has a PyPI sdist to take a checksum from.
 
 ## Licence
 

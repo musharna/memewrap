@@ -51,8 +51,9 @@ jobs:
       - name: Confirm the MEME binaries are visible to the wrappers
         run: |
           python -c "
-          from memewrap.tools import require_tools
-          print({k: str(v) for k, v in require_tools().items()})
+          from memewrap.tools import DEFAULT_TOOLS, ENRICHMENT_TOOLS, require_tools
+          found = require_tools(DEFAULT_TOOLS + ENRICHMENT_TOOLS)
+          print({k: str(v) for k, v in found.items()})
           "
 
       - name: Run the suite

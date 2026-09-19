@@ -2,6 +2,37 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions: SemVer.
 
+## [0.3.0] - 2026-09-18
+
+### Added
+
+- **`run_sea` / `read_sea`** (`memewrap.sea`): SEA enrichment of known motifs in primary
+  vs control sequences. Returns the `sea.tsv` path; `read_sea` parses it with declared
+  dtypes (`SEA_DTYPES`: PVALUE, EVALUE, QVALUE and their logs as float64, counts as
+  int64, IDs as strings), drops the trailing `#` provenance block, and returns a typed
+  empty frame for a header-only table. `thresh` + `threshold_on="evalue"|"qvalue"|"pvalue"`
+  replace SEA's two combinable flags; a q/p threshold above 1 is refused before launch.
+- **`run_ame` / `read_ame`** (`memewrap.ame`): the same for AME (`p-value`,
+  `adj_p-value`, `E-value`; AME reports no q-value). `control` is a required keyword --
+  a FASTA, `AME_SHUFFLE`, or an explicit `None` -- because `ame` without `--control`
+  ranks by input order instead of shuffling and exits 0 (measured on 5.5.9: p = 0.07
+  for a motif planted in 90% of sequences, against 4.4e-97 with a control file).
+- Both default to `--text`, writing stdout to `<outdir>/sea.tsv` / `ame.tsv` only after
+  a zero exit and removing any earlier table first. `text=False` runs `--oc`. Observed
+  on bioconda MEME 5.5.9 build `pl5321he99cc7f_1`, locally and on a fresh CI install: `sea --oc` and `ame --oc`
+  exit 1 with "Template does not contain data section" after writing a header-only TSV.
+- `ENRICHMENT_TOOLS = ("sea", "ame")`. `DEFAULT_TOOLS` is unchanged, so `require_tools()`
+  behaves as before on MEME installs older than 5.4.0, which have no `sea`.
+- Real-execution tests against a two-motif database (planted + decoy): the planted motif
+  is significant and the decoy is not; a control set carrying the motif makes `control`
+  observable; thresholds, seed and method are each shown to reach the binary. Run against
+  MEME 5.5.9 and 5.4.1. 23 mutants run, all killed after one test fix (see README).
+- `packaging/bioconda/meta.yaml`: DRAFT recipe, not submitted, not linted, not built.
+
+### Changed
+
+- CI's tool-visibility step now also requires `sea` and `ame`.
+
 ## [0.2.0] - 2026-09-16
 
 ### Fixed
