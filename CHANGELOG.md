@@ -19,7 +19,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions: SemV
   for a motif planted in 90% of sequences, against 4.4e-97 with a control file).
 - Both default to `--text`, writing stdout to `<outdir>/sea.tsv` / `ame.tsv` only after
   a zero exit and removing any earlier table first. `text=False` runs `--oc`. Observed
-  on a bioconda MEME 5.5.9 install (build `pl5321he99cc7f_1`): `sea --oc` and `ame --oc`
+  on bioconda MEME 5.5.9 build `pl5321he99cc7f_1`, locally and on a fresh CI install: `sea --oc` and `ame --oc`
   exit 1 with "Template does not contain data section" after writing a header-only TSV.
 - `ENRICHMENT_TOOLS = ("sea", "ame")`. `DEFAULT_TOOLS` is unchanged, so `require_tools()`
   behaves as before on MEME installs older than 5.4.0, which have no `sea`.

@@ -28,7 +28,7 @@ populated, to stdout (verified against 5.4.1 and 5.5.9). What `--text` drops is
 `sites.tsv`, `sequences.tsv` and the HTML report.
 
 And `--oc` is what breaks. The bioconda build of MEME 5.5.9 this was developed
-against (`pl5321he99cc7f_1`) ships a `sea_template.html` with no data section;
+against (`pl5321he99cc7f_1`, reproduced on a fresh CI install) ships a `sea_template.html` with no data section;
 `sea --oc` computes everything, fails rendering the HTML, exits 1 with
 
     FATAL: Template does not contain data section.

@@ -139,9 +139,9 @@ the FASTA input order as a ranking. On the test corpus (motif planted in 90% of
 against `--shuffle--`, and 0.07 with no `--control`, exit status 0 each time.
 
 **`run_sea` / `run_ame` default to `--text`.** Unlike FIMO's, their `--text`
-table is complete (SEA's q-values included). And on the bioconda install of MEME
-5.5.9 this was developed against (build `pl5321he99cc7f_1`) the SEA and AME HTML
-templates have no data section: `sea --oc` exits 1 _after_ writing a header-only `sea.tsv`, which reads
+table is complete (SEA's q-values included). And in the bioconda build of MEME 5.5.9
+(`pl5321he99cc7f_1`; seen on a developer install and on a fresh CI install) the
+SEA and AME HTML templates have no data section: `sea --oc` exits 1 _after_ writing a header-only `sea.tsv`, which reads
 as "nothing enriched". `text=False` is there for intact installs; a non-zero
 exit raises `SeaError` / `AmeError` with the tool's stderr either way.
 
