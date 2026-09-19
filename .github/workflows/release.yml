@@ -1,0 +1,103 @@
+name: Release
+
+# Tag-driven release: push a `vX.Y.Z` tag and this tests, builds, publishes to
+# PyPI with the account API token stored as the `PYPI_API_TOKEN` repo secret,
+# and cuts a GitHub release with the artifacts attached.
+#
+#   git tag v0.3.0 && git push origin v0.3.0
+#
+# The token path is the one zotero-provenance and confound-controls release with.
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  test:
+    name: Test gate (no publish on red)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The same real MEME Suite tests.yml installs: a release gate that skipped
+      # every binary-backed test would pass on a wrapper that cannot run.
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-name: meme
+          create-args: >-
+            python=3.12
+            meme
+          condarc: |
+            channels:
+              - conda-forge
+              - bioconda
+      - name: Install memewrap
+        run: pip install -e '.[dev]'
+      - name: Tests, with no binary-backed test skipped
+        run: |
+          pytest -q
+          pytest -m meme -q --junitxml=meme.xml
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          s = ET.parse("meme.xml").getroot().find("testsuite")
+          tests, skipped = int(s.get("tests", 0)), int(s.get("skipped", 0))
+          if tests == 0 or skipped:
+              sys.exit(f"real-execution tests: {tests} collected, {skipped} skipped")
+          PY
+
+  build:
+    name: Build distributions
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Verify tag matches package version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VER=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          if [ "$TAG" != "$VER" ]; then
+            echo "Release tag '$TAG' != pyproject version '$VER'"; exit 1
+          fi
+      - name: Build sdist + wheel
+        run: uv build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI (API token)
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true # a rerun after a partial failure must not fail on the files already up
+
+  github-release:
+    name: Create GitHub release
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - name: Create release with artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
