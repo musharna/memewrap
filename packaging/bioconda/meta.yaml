@@ -1,12 +1,12 @@
 # DRAFT bioconda recipe for memewrap. NOT submitted to bioconda-recipes.
 #
-# Blocked on a PyPI release: PyPI carries 0.1.0 only, so there is no sdist for
-# 0.3.0 and `sha256` below is a placeholder. Before submitting:
-#   1. release 0.3.0 to PyPI;
-#   2. replace sha256 with the sdist's (`pip download memewrap==0.3.0
-#      --no-binary :all: --no-deps`, then `sha256sum`);
-#   3. run `bioconda-utils lint` and a local `conda build` -- neither has been
-#      run on this file.
+# The checksum is the 0.3.0 sdist on PyPI. Checked by hand on 2026-09-19 in an
+# environment created from the requirements below (bioconda meme 5.5.9, python
+# 3.12): the build script installs, the test command passes, and the repo's 87
+# tests pass with none skipped. Still to do before submitting:
+#   1. `conda build` this directory (a local attempt ran out of memory while
+#      solving, so it has not completed once);
+#   2. `bioconda-utils lint`.
 #
 # Written without the usual Jinja `set version = ...` header: this repo's
 # check-yaml hook parses every .yaml file, and a Jinja statement line is not
@@ -20,7 +20,7 @@ package:
 
 source:
   url: https://pypi.org/packages/source/m/memewrap/memewrap-0.3.0.tar.gz
-  sha256: REPLACE_WITH_SDIST_SHA256_AFTER_PYPI_RELEASE
+  sha256: 0196c62ae5e1438969008dab4bc764bdcb280a5f6b59024638836e220c96c38d
 
 build:
   number: 0
