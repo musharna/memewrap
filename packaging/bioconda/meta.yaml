@@ -3,10 +3,9 @@
 # The checksum is the 0.3.0 sdist on PyPI. Checked by hand on 2026-09-19 in an
 # environment created from the requirements below (bioconda meme 5.5.9, python
 # 3.12): the build script installs, the test command passes, and the repo's 87
-# tests pass with none skipped. Still to do before submitting:
-#   1. `conda build` this directory (a local attempt ran out of memory while
-#      solving, so it has not completed once);
-#   2. `bioconda-utils lint`.
+# tests pass with none skipped. `conda build` of this directory (conda-forge +
+# bioconda channels) then built memewrap-0.3.0-py_0.conda and its test section
+# passed. Still to do before submitting: `bioconda-utils lint`.
 #
 # Written without the usual Jinja `set version = ...` header: this repo's
 # check-yaml hook parses every .yaml file, and a Jinja statement line is not
