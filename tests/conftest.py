@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from memewrap.tools import verify_tools
+from memewrap.tools import ENRICHMENT_TOOLS, verify_tools
 
 # A motif with no strong self-similarity, so a TOMTOM self-match is meaningful.
 PLANTED_MOTIF = "TGTCTCTC"
@@ -40,6 +40,22 @@ requires_meme = pytest.mark.skipif(
         f"then set MEME_BIN to its bin/ directory."
     ),
 )
+
+
+# Separate gate for the SEA/AME tests: `sea` only exists from MEME 5.4.0, so an
+# older install should skip those and still run everything above.
+_MISSING_ENRICHMENT = [
+    name for name, path in verify_tools(ENRICHMENT_TOOLS).items() if path is None
+]
+
+requires_enrichment = pytest.mark.skipif(
+    bool(_MISSING_ENRICHMENT),
+    reason=f"MEME suite enrichment tools not installed (missing: {_MISSING_ENRICHMENT})",
+)
+
+# Planted nowhere. The negative half of every enrichment assertion: a wrapper
+# that reported everything as significant would pass a planted-motif-only test.
+DECOY_MOTIF = "GATTACAG"
 
 
 def _random_dna(n: int, rng: random.Random) -> str:
@@ -118,3 +134,46 @@ def motif_db(tmp_path_factory) -> Path:
         "nsites= 100 E= 1e-30\n" + "\n".join(rows) + "\n"
     )
     return p
+
+
+def _motif_block(name: str, alt: str, consensus: str) -> str:
+    rows = [
+        " ".join("0.997" if b == base else "0.001" for b in "ACGT")
+        for base in consensus
+    ]
+    return (
+        f"MOTIF {name} {alt}\n"
+        f"letter-probability matrix: alength= 4 w= {len(consensus)} "
+        "nsites= 100 E= 1e-30\n" + "\n".join(rows) + "\n\n"
+    )
+
+
+@pytest.fixture(scope="session")
+def enrichment_db(tmp_path_factory) -> Path:
+    """PLANTED1 (in 90% of `primary_fasta`) and DECOY1 (planted nowhere)."""
+    p = tmp_path_factory.mktemp("db") / "planted_and_decoy.meme"
+    p.write_text(
+        "MEME version 4\n\n"
+        "ALPHABET= ACGT\n\n"
+        "strands: + -\n\n"
+        "Background letter frequencies\n"
+        "A 0.25 C 0.25 G 0.25 T 0.25\n\n"
+        + _motif_block("PLANTED1", "planted", PLANTED_MOTIF)
+        + _motif_block("DECOY1", "decoy", DECOY_MOTIF)
+    )
+    return p
+
+
+@pytest.fixture(scope="session")
+def planted_control_fasta(tmp_path_factory) -> Path:
+    """A control set that ALSO carries PLANTED_MOTIF in 90% of sequences.
+
+    Against this control the planted motif is not enriched. It is what makes the
+    control argument observable: if a wrapper dropped it, SEA/AME would fall
+    back to a shuffled or absent control and report the motif as enriched.
+    """
+    d = tmp_path_factory.mktemp("corpus")
+    return write_fasta(
+        d / "control_planted.fa",
+        make_corpus(200, 150, seed=5, motif=PLANTED_MOTIF, frac=0.9),
+    )

@@ -34,14 +34,20 @@ from pathlib import Path
 __all__ = [
     "MemeToolNotFound",
     "DEFAULT_TOOLS",
+    "ENRICHMENT_TOOLS",
     "meme_bin_dir",
     "find_tool",
     "verify_tools",
     "require_tools",
 ]
 
-# The three the wrappers in this package drive. `verify_tools` takes any names.
+# The three the original wrappers drive. `verify_tools` takes any names.
 DEFAULT_TOOLS = ("streme", "fimo", "tomtom")
+
+# Driven by `memewrap.sea` / `memewrap.ame`. Kept out of DEFAULT_TOOLS so that
+# `require_tools()` does not start failing on a MEME install older than 5.4.0,
+# which has no `sea`, for callers who never run an enrichment.
+ENRICHMENT_TOOLS = ("sea", "ame")
 
 
 class MemeToolNotFound(RuntimeError):

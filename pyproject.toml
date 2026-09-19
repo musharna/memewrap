@@ -25,12 +25,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "memewrap"
-description = "Python wrappers for the MEME-suite CLI: STREME, TOMTOM and FIMO."
+description = "Python wrappers for the MEME-suite CLI: STREME, TOMTOM, FIMO, SEA and AME."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Jaret Arnold" }]
-keywords = ["bioinformatics", "motif", "meme-suite", "streme", "tomtom", "fimo"]
+keywords = ["bioinformatics", "motif", "meme-suite", "streme", "tomtom", "fimo", "sea", "ame"]
 classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
@@ -63,7 +63,7 @@ include = ["memewrap*"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 ignore = [
-    # __all__ is grouped by module (tools, streme, tomtom, fimo, motifdb) so it
+    # __all__ is grouped by module (tools, streme, tomtom, fimo, sea, ame, motifdb) so it
     # reads as an index of the package. Alphabetising it loses that.
     "RUF022",
     # Line length is the formatter's job, and it does not rewrap prose inside
