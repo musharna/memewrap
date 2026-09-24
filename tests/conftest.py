@@ -29,29 +29,38 @@ from memewrap.tools import ENRICHMENT_TOOLS, verify_tools
 # A motif with no strong self-similarity, so a TOMTOM self-match is meaningful.
 PLANTED_MOTIF = "TGTCTCTC"
 
-_HAVE = verify_tools()
-_MISSING = [name for name, path in _HAVE.items() if path is None]
+# The availability gates are fixtures, not `skipif(verify_tools() ...)` markers.
+# A marker condition runs package code while conftest is being IMPORTED; any
+# exception there (mutmut's forced-fail probe, or a mutant in verify_tools /
+# find_tool) becomes a conftest ImportError, pytest exits 4 (usage error), and
+# mutmut aborts the whole run instead of scoring one test as failed. Inside a
+# fixture the same exception fails the test that needed it.
 
-requires_meme = pytest.mark.skipif(
-    bool(_MISSING),
-    reason=(
-        f"MEME suite not installed (missing: {_MISSING}). "
-        f"conda create -n meme-suite -c bioconda -c conda-forge meme, "
-        f"then set MEME_BIN to its bin/ directory."
-    ),
-)
+
+@pytest.fixture(scope="session")
+def _meme_suite() -> None:
+    missing = [name for name, path in verify_tools().items() if path is None]
+    if missing:
+        pytest.skip(
+            f"MEME suite not installed (missing: {missing}). "
+            f"conda create -n meme-suite -c bioconda -c conda-forge meme, "
+            f"then set MEME_BIN to its bin/ directory."
+        )
 
 
 # Separate gate for the SEA/AME tests: `sea` only exists from MEME 5.4.0, so an
 # older install should skip those and still run everything above.
-_MISSING_ENRICHMENT = [
-    name for name, path in verify_tools(ENRICHMENT_TOOLS).items() if path is None
-]
+@pytest.fixture(scope="session")
+def _meme_enrichment() -> None:
+    missing = [
+        name for name, path in verify_tools(ENRICHMENT_TOOLS).items() if path is None
+    ]
+    if missing:
+        pytest.skip(f"MEME suite enrichment tools not installed (missing: {missing})")
 
-requires_enrichment = pytest.mark.skipif(
-    bool(_MISSING_ENRICHMENT),
-    reason=f"MEME suite enrichment tools not installed (missing: {_MISSING_ENRICHMENT})",
-)
+
+requires_meme = pytest.mark.usefixtures("_meme_suite")
+requires_enrichment = pytest.mark.usefixtures("_meme_enrichment")
 
 # Planted nowhere. The negative half of every enrichment assertion: a wrapper
 # that reported everything as significant would pass a planted-motif-only test.
