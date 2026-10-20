@@ -1,4 +1,6 @@
-# DRAFT bioconda recipe for memewrap. NOT submitted to bioconda-recipes.
+# The bioconda recipe for memewrap as submitted. Merged 2026-10-18 as
+# bioconda/bioconda-recipes#69404; the live copy is recipes/memewrap in that
+# repo, and version bumps happen there, not here.
 #
 # The checksum is the 0.3.0 sdist on PyPI. Checked by hand on 2026-09-19 in an
 # environment created from the requirements below (bioconda meme 5.5.9, python

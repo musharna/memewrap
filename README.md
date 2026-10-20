@@ -192,13 +192,11 @@ handled by pandas' comment and blank-line defaults.
 
 ## Packaging
 
-`packaging/bioconda/meta.yaml` is a **draft** bioconda recipe (noarch python,
-run-dependency on `meme`), which would let one `conda install` bring the
-binaries along. It has not been submitted to bioconda-recipes. The checksum is
-the 0.3.0 sdist's. The recipe's build script and test command were run by hand
-in an environment made from its own requirements (bioconda MEME 5.5.9), and the
-test suite passes there. `conda build` builds the package and its test section
-passes, and `bioconda-utils lint` reports no problems.
+The Bioconda recipe (noarch python, run-dependency on `meme`) was merged as
+[bioconda-recipes#69404](https://github.com/bioconda/bioconda-recipes/pull/69404)
+and lives at `recipes/memewrap` there; new versions are made in that repo.
+`packaging/bioconda/meta.yaml` is the copy it was submitted from, kept for its
+notes on how it was checked.
 
 ## Licence
 
