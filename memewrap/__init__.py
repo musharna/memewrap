@@ -4,19 +4,19 @@ Extracted from duplicated wrapper code in two unrelated plant-genomics projects,
 where the same STREME, TOMTOM and FIMO invocations had been copied across four
 scripts with a hardcoded conda path at module scope in each.
 
-Scope, decided against a live PyPI check rather than from memory:
+Scope, checked on PyPI and GitHub (2026-10-19; the README has the table):
 
-- **STREME and TOMTOM are the gap.** `gimmemotifs` 0.18.4 wraps 22 discovery
-  tools -- including `dreme.py`, the tool STREME deprecated and replaced -- but
-  ships no `streme.py` and no TOMTOM wrapper. `pymemesuite` 0.1.0a4 does not
-  mention either.
-- **FIMO is only partly a gap.** `pymemesuite` provides real Cython bindings for
-  it; prefer those when you can install them. `memewrap.fimo` drives the CLI, for
-  conda environments without a compiler, and parallelises over sequence chunks.
-
+- **memewrap runs the MEME binaries, so results are MEME's.** STREME, TOMTOM and
+  FIMO now have Python reimplementations (`pystreme`; `memelite` for TOMTOM and
+  FIMO; `lightmotif` for FIMO-style scanning) that are faster but are
+  independent code whose results can differ from MEME's. `gimmemotifs` 0.18.4
+  wraps `dreme.py`, the tool STREME replaced, and has no TOMTOM wrapper.
+- **For FIMO, prefer `pymemesuite` when you can install it.** It is Cython
+  bindings to FIMO's code. `memewrap.fimo` drives the CLI, for conda
+  environments without a compiler, and parallelises over sequence chunks.
 - **SEA and AME** (0.3.0) are wrapped for the step after discovery: given known
-  motifs, which are enriched in these sequences relative to those. No prior-art
-  survey was done for these two; they are here because the pipeline needs them.
+  motifs, which are enriched in these sequences relative to those. No other
+  Python package found covers them.
 
 Each wrapper fixes something measured in the source it came from -- see the
 individual module docstrings.

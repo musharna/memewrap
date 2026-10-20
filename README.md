@@ -9,32 +9,39 @@ hardcoded at module scope.
 
 ## Why this exists (and where it doesn't)
 
-Checked against PyPI rather than assumed:
+Other Python routes to these tools, checked on PyPI and GitHub (2026-10-19):
 
-|                                                                | STREME                                                                                                         | TOMTOM                                | FIMO                       |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------- | -------------------------- |
-| [`gimmemotifs`](https://pypi.org/project/gimmemotifs/) 0.18.4  | ✗ — wraps 22 tools including **`dreme.py`**, the tool STREME deprecated and replaced, but ships no `streme.py` | ✗ — has its own motif-similarity code | ✗                          |
-| [`pymemesuite`](https://pypi.org/project/pymemesuite/) 0.1.0a4 | ✗                                                                                                              | ✗                                     | ✓ **real Cython bindings** |
-| `memewrap`                                                     | ✓                                                                                                              | ✓                                     | ✓ (CLI, chunked)           |
+| Package                                                          | Covers                                    | How                                                                                       |
+| ---------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [`pymemesuite`](https://pypi.org/project/pymemesuite/) 0.1.0a4   | FIMO                                      | Cython bindings to MEME's own code                                                        |
+| [`memelite`](https://pypi.org/project/memelite/) 0.5.0           | TOMTOM, FIMO                              | reimplemented in numba; much faster, and accepts some loss of precision                   |
+| [`lightmotif`](https://pypi.org/project/lightmotif/) 0.10.1      | FIMO-style scanning                       | reimplemented in Rust                                                                     |
+| [`pystreme`](https://github.com/vmindel/pystreme) (GitHub only)  | STREME                                    | reimplemented from the paper, on a GPU; describes itself as a first-look tool             |
+| [`gimmemotifs`](https://pypi.org/project/gimmemotifs/) 0.18.4    | neither STREME nor TOMTOM                 | wraps `dreme.py` (the tool STREME replaced) and has its own motif-similarity code         |
+| `memewrap`                                                       | STREME, TOMTOM, FIMO, SEA, AME            | runs the MEME binaries                                                                    |
 
-**STREME and TOMTOM are the actual gap.** The ecosystem wrapped the previous
-generation of discriminative motif discovery and never followed it forward.
+**memewrap runs MEME itself, so the results are MEME's.** The reimplementations
+are the better choice for speed at scale, but they are independent code whose
+results can differ from MEME's. No other Python package found covers SEA or AME.
 
-**FIMO is only partly a gap — and if you can install `pymemesuite`, prefer it.**
-It binds FIMO natively: no subprocess, no temp files. `memewrap.fimo` drives the
-CLI instead, which is what a bioconda MEME environment gives you without a
-compiler, and parallelises across sequence chunks.
+**For FIMO, prefer `pymemesuite` if you can install it.** It calls FIMO's code
+directly: no subprocess, no temp files. `memewrap.fimo` drives the CLI instead,
+which is what a bioconda MEME environment gives you without a compiler, and
+parallelises across sequence chunks.
 
 ## Install
 
+From Bioconda, which installs the MEME suite with it:
+
 ```bash
-pip install memewrap
+conda install -c conda-forge -c bioconda memewrap
 ```
 
-`pip` gives you the wrappers and **none of the binaries** — the MEME suite is a C
-toolchain, not a Python package:
+From PyPI, `pip` gives you the wrappers and **none of the binaries** — the MEME
+suite is a C toolchain, not a Python package — so install it separately:
 
 ```bash
+pip install memewrap
 conda create -n meme-suite -c bioconda -c conda-forge meme
 export MEME_BIN=~/miniconda3/envs/meme-suite/bin   # or just put them on PATH
 ```
@@ -185,13 +192,11 @@ handled by pandas' comment and blank-line defaults.
 
 ## Packaging
 
-`packaging/bioconda/meta.yaml` is a **draft** bioconda recipe (noarch python,
-run-dependency on `meme`), which would let one `conda install` bring the
-binaries along. It has not been submitted to bioconda-recipes. The checksum is
-the 0.3.0 sdist's. The recipe's build script and test command were run by hand
-in an environment made from its own requirements (bioconda MEME 5.5.9), and the
-test suite passes there. `conda build` builds the package and its test section
-passes, and `bioconda-utils lint` reports no problems.
+The Bioconda recipe (noarch python, run-dependency on `meme`) was merged as
+[bioconda-recipes#69404](https://github.com/bioconda/bioconda-recipes/pull/69404)
+and lives at `recipes/memewrap` there; new versions are made in that repo.
+`packaging/bioconda/meta.yaml` is the copy it was submitted from, kept for its
+notes on how it was checked.
 
 ## Licence
 
